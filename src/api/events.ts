@@ -18,7 +18,7 @@ export async function getEventVolume(params: {
     endTime: params.endTime,
     granularity: params.granularity || "DAY",
   };
-  if (params.sourceId) queryParams.sourceId = params.sourceId;
+  if (params.sourceId) queryParams["sourceId[]"] = params.sourceId;
   if (params.groupBy) queryParams["groupBy[]"] = params.groupBy;
   return await segmentGetRaw<{ data: { result: EventVolume[]; pagination?: any } }>(
     "/events/volume",

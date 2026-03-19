@@ -135,18 +135,22 @@ import {
   getSourceSchemaSettings,
   listSources,
 } from "./api/sources.ts";
-import { formatSource, formatSources } from "./formatters/sources.ts";
+import { formatSourceEnrichment, formatSources } from "./formatters/sources.ts";
 
 const sourcesCmd = program
   .command("sources [id]")
-  .description("List sources or get source details")
+  .description("List sources or get source details (use --all for deep dive)")
   .option("--enabled", "Show only enabled sources")
   .option("--disabled", "Show only disabled sources")
+  .option("--volume", "Include event volume (last 7 days)")
+  .option("--destinations", "Include connected destinations")
+  .option("--transformations", "Include transformations for this source")
+  .option("--schema", "Include schema validation settings")
+  .option("--all", "Include volume, destinations, transformations, schema")
   .action(async (id: string | undefined, opts: any) => {
     try {
       if (id) {
-        const source = await getSource(id);
-        output(source, formatSource(source), compactSource);
+        await showSourceDetail(id, opts);
       } else {
         let sources = await listSources();
         if (opts.enabled) sources = sources.filter((s) => s.enabled);
@@ -157,6 +161,31 @@ const sourcesCmd = program
       fail(e);
     }
   });
+
+async function showSourceDetail(id: string, opts: any) {
+  const a = opts.all;
+  const [source, volume, dests, transforms, schema] = await Promise.all([
+    getSource(id),
+    a || opts.volume
+      ? getEventVolume({ startTime: defaultStart(), endTime: defaultEnd(), sourceId: id })
+      : null,
+    a || opts.destinations ? getSourceConnectedDestinations(id) : null,
+    a || opts.transformations ? listTransformations() : null,
+    a || opts.schema ? getSourceSchemaSettings(id).catch(() => null) : null,
+  ]);
+
+  const volTotal = volume?.data?.result?.[0]?.total ?? 0;
+  const sourceTransforms = transforms?.filter((t) => t.sourceId === id);
+  const enrichment = {
+    volume: volume ? { last7days: volTotal } : undefined,
+    dests: dests ?? undefined,
+    transforms: sourceTransforms ?? undefined,
+    schema: schema ?? undefined,
+  };
+
+  const enriched: any = { ...source, ...enrichment };
+  output(enriched, formatSourceEnrichment({ source, ...enrichment }), compactSource);
+}
 
 sourcesCmd
   .command("destinations <sourceId>")
@@ -193,14 +222,40 @@ import { formatDestination, formatDestinations, formatFilters } from "./formatte
 
 const destsCmd = program
   .command("destinations [id]")
-  .description("List destinations or get destination details")
+  .description("List destinations or get destination details (use --all for deep dive)")
   .option("--enabled", "Show only enabled destinations")
   .option("--disabled", "Show only disabled destinations")
+  .option("--filters", "Include destination filters")
+  .option("--subscriptions", "Include subscriptions")
+  .option("--all", "Include filters and subscriptions")
   .action(async (id: string | undefined, opts: any) => {
     try {
       if (id) {
-        const dest = await getDestination(id);
-        output(dest, formatDestination(dest), compactDestination);
+        const wantAll = opts.all;
+        const wantFilters = wantAll || opts.filters;
+        const wantSubs = wantAll || opts.subscriptions;
+
+        const [dest, filters, subs] = await Promise.all([
+          getDestination(id),
+          wantFilters ? listDestinationFilters(id).catch(() => null) : null,
+          wantSubs ? listDestinationSubscriptions(id).catch(() => null) : null,
+        ]);
+
+        const enriched: any = { ...dest };
+        const fmtParts = [formatDestination(dest)];
+
+        if (filters) {
+          enriched.filters = filters;
+          fmtParts.push(`\n${formatFilters(filters)}`);
+        }
+        if (subs) {
+          enriched.subscriptions = subs;
+          fmtParts.push(
+            `\n${chalk.bold(`Subscriptions (${subs.length}):`)}\n${JSON.stringify(subs, null, 2)}`,
+          );
+        }
+
+        output(enriched, fmtParts.join("\n"), compactDestination);
       } else {
         let dests = await listDestinations();
         if (opts.enabled) dests = dests.filter((d) => d.enabled);

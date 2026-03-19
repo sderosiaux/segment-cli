@@ -39,6 +39,32 @@ segment usage                                API calls
 segment usage mtu                            Monthly tracked users
 ```
 
+## Deep Dive Flags
+
+Enrich single-resource views with related data (fetched in parallel):
+
+**`segment sources <id>`:**
+| Flag | Adds |
+|---|---|
+| `--volume` | Event volume (last 7 days) |
+| `--destinations` | Connected destinations |
+| `--transformations` | Transformations for this source |
+| `--schema` | Schema validation settings |
+| `--all` | All of the above |
+
+**`segment destinations <id>`:**
+| Flag | Adds |
+|---|---|
+| `--filters` | Destination filters |
+| `--subscriptions` | Subscriptions |
+| `--all` | All of the above |
+
+**List filters:**
+- `segment sources --enabled` / `--disabled`
+- `segment destinations --enabled` / `--disabled`
+- `segment transformations --source <id>`
+- `segment tracking-plans rules <id> --type TRACK`
+
 ## LLM Usage Patterns
 
 1. **Always use `--json`** for machine-readable output.
@@ -55,6 +81,9 @@ segment overview --json
 
 # List active sources
 segment sources --json --compact | jq '[.[] | select(.enabled)]'
+
+# Deep dive on a source (volume + destinations + transformations)
+segment sources <srcId> --all --json
 
 # Governance: get tracking plan rules
 segment tracking-plans --json --compact          # find the plan ID
