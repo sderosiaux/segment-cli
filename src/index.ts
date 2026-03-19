@@ -738,6 +738,75 @@ program
     }
   });
 
+// --- Reverse ETL ---
+import { getReverseEtlModel, listReverseEtlModels } from "./api/reverse-etl.ts";
+import { formatReverseEtlModel, formatReverseEtlModels } from "./formatters/reverse-etl.ts";
+
+const compactReverseEtlModel = (m: any) => ({
+  id: m.id,
+  name: m.name,
+  sourceId: m.sourceId,
+  enabled: m.enabled,
+  queryIdentifierColumn: m.queryIdentifierColumn,
+  ...(m.sourceName ? { sourceName: m.sourceName } : {}),
+});
+
+const retlCmd = program
+  .command("reverse-etl [id]")
+  .description("List Reverse ETL models or get details (includes SQL query)")
+  .action(async (id: string | undefined) => {
+    try {
+      if (id) {
+        let model: any = await getReverseEtlModel(id);
+        if (program.opts().resolve) model = (await resolveAll([model]))[0];
+        output(model, formatReverseEtlModel(model), compactReverseEtlModel);
+      } else {
+        let models: any[] = await listReverseEtlModels();
+        if (program.opts().resolve) models = await resolveAll(models);
+        output(models, formatReverseEtlModels(models), compactReverseEtlModel);
+      }
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
+retlCmd
+  .command("subscriptions <modelId>")
+  .description("List destination subscriptions (mappings) linked to a Reverse ETL model")
+  .action(async (modelId: string) => {
+    try {
+      const model = await getReverseEtlModel(modelId);
+      // Find destinations that have subscriptions referencing this model
+      const allDests = await listDestinations();
+      const results: any[] = [];
+
+      for (const dest of allDests) {
+        const subs = await listDestinationSubscriptions(dest.id).catch(() => []);
+        const matching = (subs as any[]).filter((s: any) => s.modelId === modelId);
+        for (const s of matching) {
+          results.push({
+            ...s,
+            destinationId: dest.id,
+            destinationName: dest.name || dest.metadata?.name,
+          });
+        }
+      }
+
+      if (results.length === 0) {
+        output([], chalk.yellow("No subscriptions found for this model."));
+      } else {
+        const lines = results.map((s: any) => {
+          const status = s.enabled ? chalk.green("ON ") : chalk.red("OFF");
+          return `  ${status} ${chalk.bold(s.name)} ${chalk.dim(`[${s.actionSlug}]`)}\n       → ${chalk.dim(s.destinationName)} ${chalk.dim(s.id)}`;
+        });
+        const fmt = `${chalk.bold(`Subscriptions for "${model.name}" (${results.length}):`)}\n${lines.join("\n")}`;
+        output(results, fmt);
+      }
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
 // Auto-cleanup stale tap destinations from previous crashes (local file check, zero cost)
 if (hasStaleTap()) {
   await cleanupStaleTap();
