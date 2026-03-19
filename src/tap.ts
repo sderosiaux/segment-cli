@@ -157,7 +157,18 @@ function startTunnel(port: number): Promise<{ process: ChildProcess; url: string
   return new Promise((resolve, reject) => {
     const proc = spawn(
       "cloudflared",
-      ["tunnel", "--no-autoupdate", "--url", `http://localhost:${port}`],
+      [
+        "tunnel",
+        "--no-autoupdate",
+        "--loglevel",
+        "error",
+        "--protocol",
+        "http2",
+        "--metrics",
+        "localhost:0",
+        "--url",
+        `http://localhost:${port}`,
+      ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 
