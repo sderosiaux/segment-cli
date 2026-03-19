@@ -2,6 +2,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { resolveAll } from "./resolver.ts";
+import { cleanupStaleTap, runTap } from "./tap.ts";
 
 export const program = new Command();
 
@@ -272,6 +273,29 @@ sourcesCmd
   .action(async (sourceId: string, opts: any) => {
     try {
       await showSourceDebug(sourceId, opts);
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
+sourcesCmd
+  .command("tap <sourceId>")
+  .description("Live event stream via temporary webhook (requires cloudflared)")
+  .action(async (sourceId: string) => {
+    try {
+      await runTap(sourceId, { json: isJson() });
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
+sourcesCmd
+  .command("tap-cleanup")
+  .description("Manually cleanup a stale tap destination (crash recovery)")
+  .action(async () => {
+    try {
+      const cleaned = await cleanupStaleTap();
+      if (!cleaned) console.log(chalk.green("No stale tap found."));
     } catch (e: any) {
       fail(e);
     }
