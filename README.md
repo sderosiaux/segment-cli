@@ -42,6 +42,9 @@ segment destinations <id> --all                  Deep dive (filters, subscriptio
 segment tracking-plans                           List tracking plans
 segment tracking-plans <id> rules                Event schemas (governance)
 segment transformations                          List transformations
+segment reverse-etl                              Reverse ETL models (SQL queries)
+segment violations                               Schema violations summary
+segment coverage                                 Tracking plan coverage map
 segment volume                                   Event volume (last 7 days)
 segment delivery egress --source <id>            Delivery metrics
 segment audit                                    Audit trail
@@ -178,6 +181,41 @@ Subscriptions for "MAU per Organization (30d)" (1):
        → HubSpot Prod <subscriptionId>
 ```
 
+### Governance: Violations & Coverage
+
+```
+$ segment violations
+
+Violations (43):
+
+By Source:
+    30 API Backend [Prod]
+    13 My App [Prod]
+
+Timeline:
+  Mar 16 at 12:00 PM My App [Prod]
+  Mar 14 at 12:00 PM API Backend [Prod]
+  Mar 10 at 12:00 PM My App [Prod]
+  ...
+
+$ segment coverage
+
+Tracking Plan Coverage
+
+Sources:  7 active / 21 total
+Covered:  12 sources across 11 plans
+
+My App Tracking Plan (1 sources)
+  ● My App [Prod]
+
+API Events Tracking Plan (2 sources)
+  ● API Backend [Prod]
+  ● API Backend [Dev]
+
+Uncovered Active Sources (1):
+  ○ BigQuery <sourceId>
+```
+
 ### Workspace Overview
 
 ```
@@ -213,6 +251,8 @@ Volume (7d):    3,055,482 events
 | `transformations [id]` | List transformations (`--source <id>`, `--resolve`) |
 | `reverse-etl [id]` | List Reverse ETL models or detail (includes SQL query) |
 | `reverse-etl subscriptions <id>` | Destination mappings linked to a Reverse ETL model |
+| `violations` | Schema violations summary by source (`--source`, `--limit`) |
+| `coverage` | Tracking plan coverage: which sources are covered, which are not |
 | `delivery <type>` | Delivery metrics (egress, filtered-source, etc.) |
 | `volume` | Event volume (`--group-by eventName`, `--source <id>`) |
 | `audit` | Audit trail (`--type`, `--resource`, `--start`, `--end`) |

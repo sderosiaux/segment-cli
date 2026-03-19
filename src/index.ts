@@ -807,6 +807,140 @@ retlCmd
     }
   });
 
+// --- Protocols (governance composite commands) ---
+
+program
+  .command("violations")
+  .description("Recent schema violations (shortcut for audit --type violations)")
+  .option("--limit <n>", "Max violations to show")
+  .option("--source <name>", "Filter by source name (substring match)")
+  .action(async (opts: any) => {
+    try {
+      let events = await listAuditEvents();
+      events = events.filter((e) => e.type === "Violations Detected");
+      if (opts.source) {
+        events = events.filter((e) =>
+          e.resourceName.toLowerCase().includes(opts.source.toLowerCase()),
+        );
+      }
+      const limit = Number.parseInt(opts.limit, 10);
+      if (limit > 0) events = events.slice(0, limit);
+
+      // Group by source for summary
+      const bySource: Record<string, number> = {};
+      for (const e of events) {
+        bySource[e.resourceName] = (bySource[e.resourceName] || 0) + 1;
+      }
+
+      const data = {
+        total: events.length,
+        bySource,
+        events,
+      };
+
+      const fmtLines = [
+        chalk.bold(`Violations (${events.length}):`),
+        "",
+        chalk.bold("By Source:"),
+        ...Object.entries(bySource)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => `  ${String(count).padStart(4)} ${name}`),
+        "",
+        chalk.bold("Timeline:"),
+        ...events.slice(0, 20).map((e) => {
+          const date = new Date(e.timestamp).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          return `  ${chalk.dim(date.padEnd(18))} ${e.resourceName}`;
+        }),
+      ];
+
+      output(data, fmtLines.join("\n"), (d: any) => ({
+        total: d.total,
+        bySource: d.bySource,
+      }));
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
+program
+  .command("coverage")
+  .description("Tracking Plan coverage: which sources are covered by which plans")
+  .action(async () => {
+    try {
+      const [sources, plans] = await Promise.all([listSources(), listTrackingPlans()]);
+
+      // For each plan, get connected sources
+      const planSources = await Promise.all(
+        plans.map(async (p) => {
+          const connected = await listTrackingPlanSources(p.id).catch(() => []);
+          return { plan: p, sources: connected as any[] };
+        }),
+      );
+
+      // Build coverage map
+      const coveredSourceIds = new Set<string>();
+      const coverage: any[] = [];
+      for (const ps of planSources) {
+        const sourceNames = ps.sources.map((s: any) => {
+          coveredSourceIds.add(s.sourceId || s.id);
+          const found = sources.find((src) => src.id === (s.sourceId || s.id));
+          return found?.name || s.sourceId || s.id;
+        });
+        coverage.push({
+          plan: { id: ps.plan.id, name: ps.plan.name },
+          sources: sourceNames,
+          sourceCount: sourceNames.length,
+        });
+      }
+
+      const enabledSources = sources.filter((s) => s.enabled);
+      const uncoveredSources = enabledSources.filter((s) => !coveredSourceIds.has(s.id));
+
+      const data = {
+        totalPlans: plans.length,
+        totalSources: sources.length,
+        activeSources: enabledSources.length,
+        coveredSources: coveredSourceIds.size,
+        uncoveredActiveSources: uncoveredSources.map((s) => ({ id: s.id, name: s.name })),
+        coverage,
+      };
+
+      const fmtLines = [
+        chalk.bold("Tracking Plan Coverage"),
+        "",
+        `${chalk.bold("Sources:")}  ${enabledSources.length} active / ${sources.length} total`,
+        `${chalk.bold("Covered:")}  ${coveredSourceIds.size} sources across ${plans.length} plans`,
+        "",
+      ];
+
+      for (const c of coverage) {
+        fmtLines.push(`${chalk.bold(c.plan.name)} ${chalk.dim(`(${c.sourceCount} sources)`)}`);
+        for (const name of c.sources) {
+          fmtLines.push(`  ${chalk.green("●")} ${name}`);
+        }
+        fmtLines.push("");
+      }
+
+      if (uncoveredSources.length > 0) {
+        fmtLines.push(chalk.yellow.bold(`Uncovered Active Sources (${uncoveredSources.length}):`));
+        for (const s of uncoveredSources) {
+          fmtLines.push(`  ${chalk.red("○")} ${s.name} ${chalk.dim(s.id)}`);
+        }
+      } else {
+        fmtLines.push(chalk.green("All active sources are covered by a tracking plan."));
+      }
+
+      output(data, fmtLines.join("\n"));
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
 // Auto-cleanup stale tap destinations from previous crashes (local file check, zero cost)
 if (hasStaleTap()) {
   await cleanupStaleTap();

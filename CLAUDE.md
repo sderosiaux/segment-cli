@@ -34,6 +34,8 @@ segment tracking-plans sources <tpId>        Connected sources
 segment transformations [id]                 List/get transformations
 segment reverse-etl [id]                     List/get Reverse ETL models (includes SQL query)
 segment reverse-etl subscriptions <modelId>  Destination mappings for a model
+segment violations                           Schema violations summary by source
+segment coverage                             Tracking plan coverage map (covered/uncovered sources)
 segment delivery <type> --source <id>        Delivery metrics
 segment volume                               Event volume
 segment audit                                Audit trail
@@ -109,6 +111,10 @@ segment transformations --json --resolve
 # Reverse ETL: list models and their destination mappings
 segment reverse-etl --json --compact --resolve
 segment reverse-etl subscriptions <modelId> --json
+
+# Governance: violations and coverage
+segment violations --json                        # violations by source
+segment coverage --json                          # which sources lack tracking plans
 
 # Event volume by source
 segment volume --json --group-by source
