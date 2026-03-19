@@ -1,18 +1,21 @@
 # segment-cli
 
-Read-only CLI for [Segment](https://segment.com) Public API. Inspect your sources, destinations, tracking plans, transformations, event delivery, audit trail, and more from your terminal.
+Read-only CLI for [Segment](https://segment.com) Public API. Inspect sources, destinations, tracking plans, transformations, delivery, audit trail, and **tap into live events** from your terminal.
 
-Built for governance, observability, and LLM-actionable output. No write operations.
+Built for governance, observability, and LLM-actionable output.
 
 ## Install
 
-Requires [Bun](https://bun.sh).
+Requires [Bun](https://bun.sh). Optional: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) for `sources tap`.
 
 ```bash
 git clone https://github.com/sderosiaux/segment-cli.git
 cd segment-cli
 bun install
 bun link
+
+# Optional: for live event tapping
+brew install cloudflared
 ```
 
 ## Setup
@@ -32,7 +35,8 @@ Generate a token at [app.segment.com](https://app.segment.com) > Settings > Acce
 segment overview                                 Workspace health summary
 segment sources                                  List all sources
 segment sources <id> --all                       Deep dive (volume, destinations, transforms)
-segment sources debug <id>                       Live diagnostic (events/min, top events)
+segment sources debug <id>                       Diagnostic snapshot (events/min, top events)
+segment sources tap <id>                         Live event stream (requires cloudflared)
 segment destinations                             List all destinations
 segment destinations <id> --all                  Deep dive (filters, subscriptions)
 segment tracking-plans                           List tracking plans
@@ -50,13 +54,8 @@ segment usage mtu                                Monthly tracked users
 Every command supports `--json` for structured output:
 
 ```bash
-# List all tracking plan rules as JSON
 segment tracking-plans rules tp_xxx --json | jq '.[].key'
-
-# Find violation events
 segment audit --json | jq '[.[] | select(.type == "Violations Detected")]'
-
-# Count events per source
 segment volume --group-by source --json
 ```
 
@@ -71,7 +70,42 @@ segment volume --group-by source --json
 
 ## Examples
 
-### Source Debug (live diagnostic)
+### Live Event Stream (tap)
+
+Stream real events flowing through a source. Creates a temporary webhook destination, tunnels events through cloudflared to your machine, and cleans up on exit.
+
+```
+$ segment sources tap rqVAu2fqXkQXNAAwud6Bfo
+
+Tapping Console Frontend [Prod] (rqVAu2fqXkQXNAAwud6Bfo)
+Events will appear below. Ctrl+C to stop and cleanup.
+
+4:04:11 PM page     cdk.devtools.topicList.Viewed [1b52f875]
+           path=/console/1ka51881d2x/topics title=Conduktor Console
+4:04:12 PM page     cdk.devtools.home.Viewed [0dedfb24]
+           path=/console/1wrmn title=Conduktor Console
+4:04:14 PM identify user@company.com [f9957...]
+           email=user@company.com company={"id":1,"name":"Acme","plan":"enterprise"}
+4:04:14 PM track    cdk.devtools.topicDetails.browse.FirstMessage [f9957...]
+           keyDeserializer=Automatic valueDeserializer=Automatic
+4:04:32 PM track    cdk.devtools.cluster.connectionInitialized [1a1e1...]
+           clusterProvider=confluent clusterType=remote
+^C
+Cleaning up...
+Webhook destination deleted.
+Total events received: 23
+```
+
+How it works:
+1. Starts a local HTTP server on port 9876
+2. Opens a [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) tunnel to expose it publicly
+3. Creates a temporary Webhooks (Actions) destination on Segment pointing to the tunnel
+4. Displays events as they arrive (color-coded by type: track, page, identify)
+5. On Ctrl+C: deletes the webhook destination, stops the tunnel
+
+**Crash recovery:** If the CLI dies unexpectedly, a breadcrumb file (`/tmp/segment-cli-tap.json`) records the destination ID. On next run, it auto-cleans the stale destination. You can also run `segment sources tap-cleanup` manually.
+
+### Source Debug (diagnostic snapshot)
 
 ```
 $ segment sources debug rqVAu2fqXkQXNAAwud6Bfo
@@ -91,7 +125,6 @@ Top Events (15):
          906 ██████████████░░░░░░░░░░░░░░░░ cdk.devtools.topicList.Loaded
          703 ███████████░░░░░░░░░░░░░░░░░░░ cdk.devtools.topicDetails.browse.ConsumerEnded
          677 ███████████░░░░░░░░░░░░░░░░░░░ cdk.devtools.cluster.connectionInitialized
-         670 ███████████░░░░░░░░░░░░░░░░░░░ cdk.devtools.topicDetails.browse.settings.Modified
          ...
 ```
 
@@ -103,7 +136,6 @@ $ segment sources rqVAu2fqXkQXNAAwud6Bfo --all
 Name:       Console Frontend [Prod]
 ID:         rqVAu2fqXkQXNAAwud6Bfo
 Enabled:    yes
-Write Keys: qmFf...
 Type:       Javascript
 Labels:     environment:prod
 
@@ -111,7 +143,6 @@ Volume (7d): 1,523,857 events
 
 Connected Destinations (4):
   OFF Mixpanel for DevTools [Prod]
-  OFF PLATFORM.PROD.CONSOLE
   ON  GTM Console
   OFF SatisMeter
 
@@ -120,21 +151,6 @@ Transformations (4):
   ON  SaaS Filter DROP
   ON  Don't Send demo.conduktor Events to Intercom DROP
   ON  Prevent Default admin@ Creds Sending to Intercom DROP
-```
-
-### Tracking Plan Rules
-
-```
-$ segment tracking-plans rules tp_xxx
-
-Rules (186):
-  IDENTIFY (1):
-    (root) (3 props, 0 required)
-
-  TRACK (185):
-    cdk.admin.cluster.Added (3 props, 0 required)
-    cdk.admin.cluster.Deleted (3 props, 0 required)
-    ...
 ```
 
 ### Workspace Overview
@@ -157,17 +173,19 @@ Volume (7d):    3,055,482 events
 | Command | Description |
 |---------|-------------|
 | `overview` | Workspace health summary |
-| `sources [id]` | List sources or get details (`--all`, `--volume`, `--destinations`, `--transformations`, `--schema`) |
-| `sources debug <id>` | Live diagnostic: events/min, top events, violations (`--period <min>`) |
+| `sources [id]` | List or detail (`--all`, `--volume`, `--destinations`, `--transformations`, `--schema`, `--enabled`) |
+| `sources debug <id>` | Diagnostic snapshot: events/min, top events, violations (`--period <min>`) |
+| `sources tap <id>` | Live event stream via temporary webhook (requires `cloudflared`) |
+| `sources tap-cleanup` | Manual cleanup of stale tap destination |
 | `sources destinations <id>` | Connected destinations |
 | `sources schema-settings <id>` | Schema validation config |
-| `destinations [id]` | List destinations or get details (`--all`, `--filters`, `--subscriptions`) |
+| `destinations [id]` | List or detail (`--all`, `--filters`, `--subscriptions`, `--enabled`) |
 | `destinations filters <id>` | Destination filters |
 | `destinations subscriptions <id>` | Destination subscriptions |
-| `tracking-plans [id]` | List tracking plans or get details |
+| `tracking-plans [id]` | List tracking plans or detail |
 | `tracking-plans rules <id>` | Event schemas / governance rules (`--type TRACK`) |
 | `tracking-plans sources <id>` | Connected sources |
-| `transformations [id]` | List transformations (`--source <id>`) |
+| `transformations [id]` | List transformations (`--source <id>`, `--resolve`) |
 | `delivery <type>` | Delivery metrics (egress, filtered-source, etc.) |
 | `volume` | Event volume (`--group-by eventName`, `--source <id>`) |
 | `audit` | Audit trail (`--type`, `--resource`, `--start`, `--end`) |
@@ -179,7 +197,7 @@ Volume (7d):    3,055,482 events
 
 ## Design
 
-- **Read-only** -- no write operations, safe to use on production workspaces
+- **Read-only** -- no write operations (tap creates/deletes a temporary webhook, self-cleaning)
 - **LLM-actionable** -- `--json` on every command for structured output
 - **Auto-pagination** -- fetches all pages automatically
 - **Retry with backoff** -- handles 429 rate limits and server errors
@@ -187,7 +205,7 @@ Volume (7d):    3,055,482 events
 
 ## Stack
 
-Bun, TypeScript, Commander.js, Chalk.
+Bun, TypeScript, Commander.js, Chalk, cloudflared.
 
 ## License
 
