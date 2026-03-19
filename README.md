@@ -115,7 +115,7 @@ Audit Events (93):
   Mar 14 at 12:00 PM Violations Detected
                     system source: Console Backend [Prod]
   Mar 10 at 03:47 PM Integration Disabled
-                    sderosiaux@conduktor.io integration: Conduktor Tempo Server [Prod] - Mixpanel (Legacy)
+                    user@company.io integration: Tempo Server [Prod] - Mixpanel (Legacy)
   ...
 ```
 
