@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import type { Command } from "commander";
 import {
+  deleteDestination,
   getDestination,
   listDestinationFilters,
   listDestinationSubscriptions,
@@ -65,6 +66,69 @@ export function register(prog: Command) {
       try {
         const subs = await listDestinationSubscriptions(destinationId);
         output(subs, JSON.stringify(subs, null, 2), compactSubscription);
+      } catch (e: any) {
+        fail(e);
+      }
+    });
+  destsCmd
+    .command("delete <destinationIds...>")
+    .description("Delete one or more destinations (irreversible)")
+    .option("--force", "Skip confirmation prompt")
+    .action(async (ids: string[], opts: any) => {
+      try {
+        // Fetch details for all destinations first
+        const dests = await Promise.all(
+          ids.map((id) =>
+            getDestination(id).catch(
+              () =>
+                ({ id, name: `(unknown: ${id})`, enabled: false, metadata: { name: "?" } }) as any,
+            ),
+          ),
+        );
+
+        // Show what will be deleted
+        console.error(chalk.bold.red(`\nAbout to delete ${dests.length} destination(s):\n`));
+        for (const d of dests) {
+          const status = d.enabled ? chalk.green("ON ") : chalk.red("OFF");
+          const type = d.metadata?.name || "unknown";
+          console.error(`  ${status} ${d.name} [${type}] ${chalk.dim(d.id)}`);
+        }
+
+        const activeCount = dests.filter((d) => d.enabled).length;
+        if (activeCount > 0) {
+          console.error(
+            chalk.yellow(`\n  WARNING: ${activeCount} destination(s) are currently ENABLED.`),
+          );
+        }
+
+        // Confirm unless --force
+        if (!opts.force) {
+          console.error(chalk.dim("\nType 'yes' to confirm, or Ctrl+C to cancel:"));
+          const answer = await new Promise<string>((resolve) => {
+            process.stdout.write("> ");
+            process.stdin.setEncoding("utf-8");
+            process.stdin.once("data", (data) => resolve(data.toString().trim()));
+          });
+          if (answer !== "yes") {
+            console.error(chalk.dim("Cancelled."));
+            process.exit(0);
+          }
+        }
+
+        // Delete each destination
+        const results: { id: string; name: string; status: string }[] = [];
+        for (const d of dests) {
+          try {
+            const res = await deleteDestination(d.id);
+            results.push({ id: d.id, name: d.name, status: res.status });
+            console.error(chalk.green(`  Deleted: ${d.name} (${d.id})`));
+          } catch (e: any) {
+            results.push({ id: d.id, name: d.name, status: `error: ${e.message}` });
+            console.error(chalk.red(`  Failed: ${d.name} — ${e.message}`));
+          }
+        }
+
+        output(results, "", (r: any) => r);
       } catch (e: any) {
         fail(e);
       }

@@ -115,6 +115,19 @@ export async function segmentGetRaw<T>(path: string, params?: Record<string, str
   return await request<T>(path, params);
 }
 
+/** DELETE — returns success status. */
+export async function segmentDelete(path: string): Promise<{ status: string }> {
+  const url = buildUrl(path);
+  const res = await fetchWithRetry(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return await (res.json() as Promise<{ data: { status: string } }>).then((d) => d.data);
+}
+
 /** Paginated list GET — auto-paginates using cursor, returns all items. */
 export async function segmentGetAll<T>(
   path: string,

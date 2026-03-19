@@ -1,4 +1,4 @@
-import { segmentGet, segmentGetAll } from "../client.ts";
+import { segmentDelete, segmentGet, segmentGetAll } from "../client.ts";
 
 export interface Destination {
   id: string;
@@ -38,4 +38,8 @@ export async function listDestinationFilters(destinationId: string): Promise<Des
 
 export async function listDestinationSubscriptions(destinationId: string) {
   return await segmentGetAll(`/destinations/${destinationId}/subscriptions`, "subscriptions");
+}
+
+export async function deleteDestination(id: string): Promise<{ status: string }> {
+  return await segmentDelete(`/destinations/${id}`);
 }
