@@ -187,6 +187,96 @@ async function showSourceDetail(id: string, opts: any) {
   output(enriched, formatSourceEnrichment({ source, ...enrichment }), compactSource);
 }
 
+async function showSourceDebug(sourceId: string, opts: any) {
+  const minutes = Number.parseInt(opts.period, 10) || 60;
+  const end = new Date();
+  const start = new Date(end.getTime() - minutes * 60000);
+  const startISO = start.toISOString();
+  const endISO = end.toISOString();
+
+  const [source, volumeByEvent, volumeByType, auditEvents] = await Promise.all([
+    getSource(sourceId),
+    getEventVolume({
+      startTime: startISO,
+      endTime: endISO,
+      granularity: minutes <= 60 ? "MINUTE" : "HOUR",
+      sourceId,
+      groupBy: "eventName",
+    }),
+    getEventVolume({
+      startTime: startISO,
+      endTime: endISO,
+      granularity: minutes <= 60 ? "MINUTE" : "HOUR",
+      sourceId,
+      groupBy: "eventType",
+    }),
+    listAuditEvents({ startTime: startISO, endTime: endISO, resourceId: sourceId }),
+  ]);
+
+  const topEvents = (volumeByEvent.data?.result ?? [])
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 15);
+  const byType = (volumeByType.data?.result ?? []).sort((a, b) => b.total - a.total);
+  const totalEvents = topEvents.reduce((sum, e) => sum + e.total, 0);
+  const violations = auditEvents.filter((e) => e.type === "Violations Detected");
+
+  const debugData = {
+    source: { id: source.id, name: source.name, enabled: source.enabled },
+    period: { minutes, start: startISO, end: endISO },
+    totalEvents,
+    eventsPerMinute: Math.round(totalEvents / minutes),
+    byEventType: byType.map((e) => ({ type: e.eventName, total: e.total })),
+    topEvents: topEvents.map((e) => ({ name: e.eventName, total: e.total })),
+    violations: violations.length,
+  };
+
+  const maxEvt = topEvents[0]?.total ?? 1;
+  const barWidth = 30;
+  const makeBar = (val: number) => {
+    const filled = maxEvt > 0 ? Math.round((val / maxEvt) * barWidth) : 0;
+    return "\u2588".repeat(filled) + "\u2591".repeat(barWidth - filled);
+  };
+
+  const fmt = [
+    chalk.bold(`Debug: ${source.name}`),
+    `${chalk.dim("Period:")} last ${minutes}min (${start.toLocaleTimeString()} - ${end.toLocaleTimeString()})`,
+    "",
+    `${chalk.bold("Total:")}  ${totalEvents.toLocaleString()} events (${chalk.cyan(`~${debugData.eventsPerMinute}/min`)})`,
+    "",
+    chalk.bold("By Type:"),
+    ...byType.map(
+      (e) => `  ${(e.eventName || "unknown").padEnd(12)} ${e.total.toLocaleString().padStart(10)}`,
+    ),
+    "",
+    chalk.bold(`Top Events (${topEvents.length}):`),
+    ...topEvents.map(
+      (e) =>
+        `  ${e.total.toLocaleString().padStart(10)} ${makeBar(e.total)} ${chalk.dim(e.eventName || "(unnamed)")}`,
+    ),
+  ];
+
+  if (violations.length > 0) {
+    fmt.push("", chalk.red.bold(`Violations: ${violations.length}`));
+    for (const v of violations) {
+      fmt.push(`  ${chalk.dim(v.timestamp)} ${v.type}`);
+    }
+  }
+
+  output(debugData, fmt.join("\n"));
+}
+
+sourcesCmd
+  .command("debug <sourceId>")
+  .description("Live diagnostic: top events, volume trend, violations (last hour)")
+  .option("--period <minutes>", "Lookback period in minutes", "60")
+  .action(async (sourceId: string, opts: any) => {
+    try {
+      await showSourceDebug(sourceId, opts);
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
 sourcesCmd
   .command("destinations <sourceId>")
   .description("List destinations connected to a source")

@@ -20,6 +20,7 @@ Read-only CLI for the Segment.com Public API. Globally available as `segment` (i
 ```
 segment overview                             Workspace health summary (start here)
 segment sources [id]                         List/get sources
+segment sources debug <srcId>                Live diagnostic (events/min, top events)
 segment sources destinations <srcId>         Connected destinations
 segment sources schema-settings <srcId>      Schema validation config
 segment destinations [id]                    List/get destinations
@@ -84,6 +85,9 @@ segment sources --json --compact | jq '[.[] | select(.enabled)]'
 
 # Deep dive on a source (volume + destinations + transformations)
 segment sources <srcId> --all --json
+
+# Debug a source (events/min, top events, last 5 minutes)
+segment sources debug <srcId> --json --period 5
 
 # Governance: get tracking plan rules
 segment tracking-plans --json --compact          # find the plan ID
