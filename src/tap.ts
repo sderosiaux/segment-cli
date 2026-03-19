@@ -35,6 +35,10 @@ function saveBreadcrumb(state: TapState) {
   writeFileSync(TAP_BREADCRUMB, JSON.stringify(state));
 }
 
+export function hasStaleTap(): boolean {
+  return existsSync(TAP_BREADCRUMB);
+}
+
 function loadBreadcrumb(): TapState | null {
   if (!existsSync(TAP_BREADCRUMB)) return null;
   try {
@@ -176,9 +180,9 @@ function startTunnel(port: number): Promise<{ process: ChildProcess; url: string
     const timeout = setTimeout(() => {
       if (!resolved) {
         proc.kill();
-        reject(new Error("Cloudflared tunnel failed to start within 15s"));
+        reject(new Error("Cloudflared tunnel failed to start within 30s"));
       }
-    }, 15000);
+    }, 30000);
 
     const handleOutput = (data: Buffer) => {
       const line = data.toString();

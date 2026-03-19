@@ -2,7 +2,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { resolveAll } from "./resolver.ts";
-import { cleanupStaleTap, runTap } from "./tap.ts";
+import { cleanupStaleTap, hasStaleTap, runTap } from "./tap.ts";
 
 export const program = new Command();
 
@@ -737,5 +737,10 @@ program
       fail(e);
     }
   });
+
+// Auto-cleanup stale tap destinations from previous crashes (local file check, zero cost)
+if (hasStaleTap()) {
+  await cleanupStaleTap();
+}
 
 program.parse();

@@ -54,7 +54,7 @@ segment usage mtu                                Monthly tracked users
 Every command supports `--json` for structured output:
 
 ```bash
-segment tracking-plans rules tp_xxx --json | jq '.[].key'
+segment tracking-plans rules <tpId> --json | jq '.[].key'
 segment audit --json | jq '[.[] | select(.type == "Violations Detected")]'
 segment volume --group-by source --json
 ```
@@ -75,21 +75,19 @@ segment volume --group-by source --json
 Stream real events flowing through a source. Creates a temporary webhook destination, tunnels events through cloudflared to your machine, and cleans up on exit.
 
 ```
-$ segment sources tap rqVAu2fqXkQXNAAwud6Bfo
+$ segment sources tap <sourceId>
 
-Tapping Console Frontend [Prod] (rqVAu2fqXkQXNAAwud6Bfo)
+Tapping My App [Prod] (<sourceId>)
 Events will appear below. Ctrl+C to stop and cleanup.
 
-4:04:11 PM page     cdk.devtools.topicList.Viewed [1b52f875]
-           path=/console/1ka51881d2x/topics title=Conduktor Console
-4:04:12 PM page     cdk.devtools.home.Viewed [0dedfb24]
-           path=/console/1wrmn title=Conduktor Console
-4:04:14 PM identify user@company.com [f9957...]
-           email=user@company.com company={"id":1,"name":"Acme","plan":"enterprise"}
-4:04:14 PM track    cdk.devtools.topicDetails.browse.FirstMessage [f9957...]
-           keyDeserializer=Automatic valueDeserializer=Automatic
-4:04:32 PM track    cdk.devtools.cluster.connectionInitialized [1a1e1...]
-           clusterProvider=confluent clusterType=remote
+4:04:11 PM page     app.dashboard.Viewed [1b52f875]
+           path=/dashboard title=My App url=https://app.example.com/dashboard
+4:04:14 PM identify user@example.com [f9957...]
+           email=user@example.com company={"id":1,"name":"Acme","plan":"enterprise"}
+4:04:14 PM track    app.feature.Used [f9957...]
+           feature=export format=csv
+4:04:32 PM track    app.cluster.Connected [1a1e1...]
+           provider=aws region=us-east-1
 ^C
 Cleaning up...
 Webhook destination deleted.
@@ -103,14 +101,14 @@ How it works:
 4. Displays events as they arrive (color-coded by type: track, page, identify)
 5. On Ctrl+C: deletes the webhook destination, stops the tunnel
 
-**Crash recovery:** If the CLI dies unexpectedly, a breadcrumb file (`/tmp/segment-cli-tap.json`) records the destination ID. On next run, it auto-cleans the stale destination. You can also run `segment sources tap-cleanup` manually.
+**Crash recovery:** If the CLI dies unexpectedly, a breadcrumb file (`/tmp/segment-cli-tap.json`) records the destination ID. On next run of any command, it auto-cleans the stale destination. You can also run `segment sources tap-cleanup` manually.
 
 ### Source Debug (diagnostic snapshot)
 
 ```
-$ segment sources debug rqVAu2fqXkQXNAAwud6Bfo
+$ segment sources debug <sourceId>
 
-Debug: Console Frontend [Prod]
+Debug: My App [Prod]
 Period: last 60min (2:51 PM - 3:51 PM)
 
 Total:  6,909 events (~115/min)
@@ -121,20 +119,20 @@ By Type:
   identify            579
 
 Top Events (15):
-       1,890 ██████████████████████████████ Conduktor Console
-         906 ██████████████░░░░░░░░░░░░░░░░ cdk.devtools.topicList.Loaded
-         703 ███████████░░░░░░░░░░░░░░░░░░░ cdk.devtools.topicDetails.browse.ConsumerEnded
-         677 ███████████░░░░░░░░░░░░░░░░░░░ cdk.devtools.cluster.connectionInitialized
+       1,890 ██████████████████████████████ app.dashboard.Viewed
+         906 ██████████████░░░░░░░░░░░░░░░░ app.feature.Used
+         703 ███████████░░░░░░░░░░░░░░░░░░░ app.user.LoggedIn
+         677 ███████████░░░░░░░░░░░░░░░░░░░ app.cluster.Connected
          ...
 ```
 
 ### Source Deep Dive
 
 ```
-$ segment sources rqVAu2fqXkQXNAAwud6Bfo --all
+$ segment sources <sourceId> --all
 
-Name:       Console Frontend [Prod]
-ID:         rqVAu2fqXkQXNAAwud6Bfo
+Name:       My App [Prod]
+ID:         <sourceId>
 Enabled:    yes
 Type:       Javascript
 Labels:     environment:prod
@@ -142,15 +140,13 @@ Labels:     environment:prod
 Volume (7d): 1,523,857 events
 
 Connected Destinations (4):
-  OFF Mixpanel for DevTools [Prod]
-  ON  GTM Console
+  OFF Mixpanel
+  ON  Google Tag Manager
   OFF SatisMeter
 
-Transformations (4):
-  ON  Page Path Contains Home DROP
-  ON  SaaS Filter DROP
-  ON  Don't Send demo.conduktor Events to Intercom DROP
-  ON  Prevent Default admin@ Creds Sending to Intercom DROP
+Transformations (2):
+  ON  Filter Internal Traffic DROP
+  ON  Don't Send Demo Events to Intercom DROP
 ```
 
 ### Workspace Overview
@@ -164,7 +160,7 @@ Sources:         7 active / 21 total
 Destinations:    3 active / 29 total
 Tracking Plans: 11
 Transformations: 14 active (14 dropping)
-Violations:     43 recent on: Console Frontend [Prod], Console Backend [Prod]
+Violations:     43 recent on: My App [Prod], API Backend [Prod]
 Volume (7d):    3,055,482 events
 ```
 
