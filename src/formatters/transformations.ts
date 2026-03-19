@@ -14,8 +14,8 @@ export function formatTransformations(items: Transformation[]): string {
           : chalk.dim("PASS");
     return [
       `  ${status} ${chalk.bold(t.name.padEnd(55))} ${action}`,
-      `       ${chalk.dim("if: " + t.if)}`,
-      `       ${chalk.dim("source: " + t.sourceId)}${t.destinationId ? chalk.dim(" -> dest: " + t.destinationId) : ""}`,
+      `       ${chalk.dim(`if: ${t.if}`)}`,
+      `       ${chalk.dim(`source: ${t.sourceId}`)}${t.destinationId ? chalk.dim(` -> dest: ${t.destinationId}`) : ""}`,
     ].join("\n");
   });
   return `${chalk.bold(`Transformations (${items.length}):`)}\n${lines.join("\n")}`;

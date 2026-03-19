@@ -25,5 +25,5 @@ export async function getDeliveryMetrics(
     granularity: params.granularity || "DAY",
   };
   if (params.destinationConfigId) queryParams.destinationConfigId = params.destinationConfigId;
-  return segmentGetRaw<any>("/delivery-overview/" + type, queryParams);
+  return segmentGetRaw<any>(`/delivery-overview/${type}`, queryParams);
 }

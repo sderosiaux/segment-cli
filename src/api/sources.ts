@@ -16,13 +16,13 @@ export async function listSources(): Promise<Source[]> {
 }
 
 export async function getSource(id: string): Promise<Source> {
-  return segmentGet<{ source: Source }>("/sources/" + id).then((d) => d.source);
+  return segmentGet<{ source: Source }>(`/sources/${id}`).then((d) => d.source);
 }
 
 export async function getSourceConnectedDestinations(sourceId: string) {
-  return segmentGetAll("/sources/" + sourceId + "/connected-destinations", "destinations");
+  return segmentGetAll(`/sources/${sourceId}/connected-destinations`, "destinations");
 }
 
 export async function getSourceSchemaSettings(sourceId: string) {
-  return segmentGet("/sources/" + sourceId + "/schema-settings");
+  return segmentGet(`/sources/${sourceId}/schema-settings`);
 }

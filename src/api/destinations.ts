@@ -25,13 +25,13 @@ export async function listDestinations(): Promise<Destination[]> {
 }
 
 export async function getDestination(id: string): Promise<Destination> {
-  return segmentGet<{ destination: Destination }>("/destinations/" + id).then((d) => d.destination);
+  return segmentGet<{ destination: Destination }>(`/destinations/${id}`).then((d) => d.destination);
 }
 
 export async function listDestinationFilters(destinationId: string): Promise<DestinationFilter[]> {
-  return segmentGetAll<DestinationFilter>("/destinations/" + destinationId + "/filters", "filters");
+  return segmentGetAll<DestinationFilter>(`/destinations/${destinationId}/filters`, "filters");
 }
 
 export async function listDestinationSubscriptions(destinationId: string) {
-  return segmentGetAll("/destinations/" + destinationId + "/subscriptions", "subscriptions");
+  return segmentGetAll(`/destinations/${destinationId}/subscriptions`, "subscriptions");
 }

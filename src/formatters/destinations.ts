@@ -27,7 +27,7 @@ export function formatFilters(filters: DestinationFilter[]): string {
   const lines = filters.map((f) => {
     const status = f.enabled ? chalk.green("ON ") : chalk.red("OFF");
     const actions = f.actions.map((a) => a.type).join(", ");
-    return `  ${status} ${chalk.bold(f.title.padEnd(40))} ${chalk.dim(actions)}\n       ${chalk.dim("if: " + f.if)}`;
+    return `  ${status} ${chalk.bold(f.title.padEnd(40))} ${chalk.dim(actions)}\n       ${chalk.dim(`if: ${f.if}`)}`;
   });
   return `${chalk.bold(`Filters (${filters.length}):`)}\n${lines.join("\n")}`;
 }

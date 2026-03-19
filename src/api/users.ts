@@ -11,5 +11,5 @@ export async function listUsers(): Promise<WorkspaceUser[]> {
 }
 
 export async function getUser(id: string): Promise<WorkspaceUser> {
-  return segmentGet<{ user: WorkspaceUser }>("/users/" + id).then((d) => d.user);
+  return segmentGet<{ user: WorkspaceUser }>(`/users/${id}`).then((d) => d.user);
 }

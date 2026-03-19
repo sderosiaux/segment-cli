@@ -17,5 +17,5 @@ export function formatDeliveryMetrics(data: any, type: string): string {
   }
   const header =
     total != null ? `Delivery ${type} (total: ${total.toLocaleString()})` : `Delivery ${type}`;
-  return `${chalk.bold(header + ":")}\n${lines.join("\n")}`;
+  return `${chalk.bold(`${header}:`)}\n${lines.join("\n")}`;
 }

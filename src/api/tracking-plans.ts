@@ -24,15 +24,15 @@ export async function listTrackingPlans(): Promise<TrackingPlan[]> {
 }
 
 export async function getTrackingPlan(id: string): Promise<TrackingPlan> {
-  return segmentGet<{ trackingPlan: TrackingPlan }>("/tracking-plans/" + id).then(
+  return segmentGet<{ trackingPlan: TrackingPlan }>(`/tracking-plans/${id}`).then(
     (d) => d.trackingPlan,
   );
 }
 
 export async function listTrackingPlanRules(id: string): Promise<TrackingPlanRule[]> {
-  return segmentGetAll<TrackingPlanRule>("/tracking-plans/" + id + "/rules", "rules");
+  return segmentGetAll<TrackingPlanRule>(`/tracking-plans/${id}/rules`, "rules");
 }
 
 export async function listTrackingPlanSources(id: string) {
-  return segmentGetAll("/tracking-plans/" + id + "/sources", "sources");
+  return segmentGetAll(`/tracking-plans/${id}/sources`, "sources");
 }

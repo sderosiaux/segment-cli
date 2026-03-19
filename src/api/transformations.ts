@@ -21,7 +21,7 @@ export async function listTransformations(): Promise<Transformation[]> {
 }
 
 export async function getTransformation(id: string): Promise<Transformation> {
-  return segmentGet<{ transformation: Transformation }>("/transformations/" + id).then(
+  return segmentGet<{ transformation: Transformation }>(`/transformations/${id}`).then(
     (d) => d.transformation,
   );
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import chalk from "chalk";
 import { Command } from "commander";
+import { resolveAll } from "./resolver.ts";
 
 export const program = new Command();
 
@@ -11,6 +12,9 @@ program
   )
   .version("0.1.0")
   .option("--json", "Output as JSON (for LLM/script consumption)")
+  .option("--compact", "Strip JSON output to essential fields only (requires --json)")
+  .option("--resolve", "Enrich IDs with human-readable names")
+  .option("--limit <n>", "Limit array output to N items")
   .addHelpText(
     "after",
     `
@@ -21,18 +25,31 @@ Examples:
   segment transformations                          List transformations
   segment audit --json | jq '.[]'                  Audit trail as JSON
   segment volume --start 2026-03-01                Event volume
+  segment overview --json                          Workspace health summary
 
 All commands support --json for structured output (no ANSI).
-Errors go to stderr with exit code 1.`,
+Use --compact with --json to strip to essential fields.
+Use --resolve to enrich IDs with names.
+Use --limit <n> to cap array results.`,
   );
 
 export function isJson(): boolean {
   return program.opts().json === true;
 }
 
-export function output(data: unknown, formatted: string) {
+export function output(data: unknown, formatted: string, compactFn?: (item: any) => any) {
+  const limit = Number.parseInt(program.opts().limit, 10);
+  let processedData = data;
+
+  if (Array.isArray(processedData)) {
+    if (limit > 0) processedData = processedData.slice(0, limit);
+    if (program.opts().compact && compactFn) processedData = processedData.map(compactFn);
+  } else if (program.opts().compact && compactFn) {
+    processedData = compactFn(processedData);
+  }
+
   if (isJson()) {
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify(processedData, null, 2));
   } else {
     console.log(formatted);
   }
@@ -47,6 +64,70 @@ export function fail(e: any): never {
   process.exit(1);
 }
 
+// --- Compact functions ---
+const compactSource = (s: any) => ({
+  id: s.id,
+  name: s.name,
+  slug: s.slug,
+  enabled: s.enabled,
+});
+
+const compactDestination = (d: any) => ({
+  id: d.id,
+  name: d.name,
+  enabled: d.enabled,
+  sourceId: d.sourceId,
+  type: d.metadata?.name,
+});
+
+const compactTrackingPlan = (p: any) => ({
+  id: p.id,
+  name: p.name,
+  type: p.type,
+});
+
+const compactRule = (r: any) => ({
+  key: r.key,
+  type: r.type,
+  version: r.version,
+});
+
+const compactTransformation = (t: any) => ({
+  id: t.id,
+  name: t.name,
+  enabled: t.enabled,
+  sourceId: t.sourceId,
+  destinationId: t.destinationId,
+  if: t.if,
+  drop: t.drop,
+  newEventName: t.newEventName,
+  ...(t.sourceName ? { sourceName: t.sourceName } : {}),
+  ...(t.destinationName ? { destinationName: t.destinationName } : {}),
+});
+
+const compactAuditEvent = (e: any) => ({
+  id: e.id,
+  timestamp: e.timestamp,
+  type: e.type,
+  actorEmail: e.actorEmail,
+  resourceType: e.resourceType,
+  resourceName: e.resourceName,
+  ...(e.sourceName ? { sourceName: e.sourceName } : {}),
+});
+
+const compactUser = (u: any) => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+});
+
+const compactRegulation = (r: any) => ({
+  id: r.id,
+  overallStatus: r.overallStatus,
+  createdAt: r.createdAt,
+  regulationType: r.regulateRequest?.regulationType,
+});
+
 // --- Sources ---
 import {
   getSource,
@@ -59,14 +140,18 @@ import { formatSource, formatSources } from "./formatters/sources.ts";
 const sourcesCmd = program
   .command("sources [id]")
   .description("List sources or get source details")
-  .action(async (id: string | undefined) => {
+  .option("--enabled", "Show only enabled sources")
+  .option("--disabled", "Show only disabled sources")
+  .action(async (id: string | undefined, opts: any) => {
     try {
       if (id) {
         const source = await getSource(id);
-        output(source, formatSource(source));
+        output(source, formatSource(source), compactSource);
       } else {
-        const sources = await listSources();
-        output(sources, formatSources(sources));
+        let sources = await listSources();
+        if (opts.enabled) sources = sources.filter((s) => s.enabled);
+        if (opts.disabled) sources = sources.filter((s) => !s.enabled);
+        output(sources, formatSources(sources), compactSource);
       }
     } catch (e: any) {
       fail(e);
@@ -79,7 +164,7 @@ sourcesCmd
   .action(async (sourceId: string) => {
     try {
       const dests = await getSourceConnectedDestinations(sourceId);
-      output(dests, JSON.stringify(dests, null, 2));
+      output(dests, JSON.stringify(dests, null, 2), compactDestination);
     } catch (e: any) {
       fail(e);
     }
@@ -109,14 +194,18 @@ import { formatDestination, formatDestinations, formatFilters } from "./formatte
 const destsCmd = program
   .command("destinations [id]")
   .description("List destinations or get destination details")
-  .action(async (id: string | undefined) => {
+  .option("--enabled", "Show only enabled destinations")
+  .option("--disabled", "Show only disabled destinations")
+  .action(async (id: string | undefined, opts: any) => {
     try {
       if (id) {
         const dest = await getDestination(id);
-        output(dest, formatDestination(dest));
+        output(dest, formatDestination(dest), compactDestination);
       } else {
-        const dests = await listDestinations();
-        output(dests, formatDestinations(dests));
+        let dests = await listDestinations();
+        if (opts.enabled) dests = dests.filter((d) => d.enabled);
+        if (opts.disabled) dests = dests.filter((d) => !d.enabled);
+        output(dests, formatDestinations(dests), compactDestination);
       }
     } catch (e: any) {
       fail(e);
@@ -128,7 +217,8 @@ destsCmd
   .description("List filters for a destination")
   .action(async (destinationId: string) => {
     try {
-      const filters = await listDestinationFilters(destinationId);
+      let filters = await listDestinationFilters(destinationId);
+      if (program.opts().resolve) filters = (await resolveAll(filters)) as any;
       output(filters, formatFilters(filters));
     } catch (e: any) {
       fail(e);
@@ -167,10 +257,10 @@ const tpCmd = program
     try {
       if (id) {
         const tp = await getTrackingPlan(id);
-        output(tp, formatTrackingPlan(tp));
+        output(tp, formatTrackingPlan(tp), compactTrackingPlan);
       } else {
         const plans = await listTrackingPlans();
-        output(plans, formatTrackingPlans(plans));
+        output(plans, formatTrackingPlans(plans), compactTrackingPlan);
       }
     } catch (e: any) {
       fail(e);
@@ -180,10 +270,12 @@ const tpCmd = program
 tpCmd
   .command("rules <trackingPlanId>")
   .description("List rules (event schemas) for a tracking plan")
-  .action(async (trackingPlanId: string) => {
+  .option("--type <type>", "Filter by rule type (TRACK, IDENTIFY, GROUP, PAGE, SCREEN)")
+  .action(async (trackingPlanId: string, opts: any) => {
     try {
-      const rules = await listTrackingPlanRules(trackingPlanId);
-      output(rules, formatRules(rules));
+      let rules = await listTrackingPlanRules(trackingPlanId);
+      if (opts.type) rules = rules.filter((r) => r.type.toUpperCase() === opts.type.toUpperCase());
+      output(rules, formatRules(rules), compactRule);
     } catch (e: any) {
       fail(e);
     }
@@ -195,7 +287,7 @@ tpCmd
   .action(async (trackingPlanId: string) => {
     try {
       const sources = await listTrackingPlanSources(trackingPlanId);
-      output(sources, JSON.stringify(sources, null, 2));
+      output(sources, JSON.stringify(sources, null, 2), compactSource);
     } catch (e: any) {
       fail(e);
     }
@@ -208,14 +300,18 @@ import { formatTransformation, formatTransformations } from "./formatters/transf
 program
   .command("transformations [id]")
   .description("List transformations or get details")
-  .action(async (id: string | undefined) => {
+  .option("--source <id>", "Filter by source ID")
+  .action(async (id: string | undefined, opts: any) => {
     try {
       if (id) {
-        const t = await getTransformation(id);
-        output(t, formatTransformation(t));
+        let t: any = await getTransformation(id);
+        if (program.opts().resolve) t = (await resolveAll([t]))[0];
+        output(t, formatTransformation(t), compactTransformation);
       } else {
-        const items = await listTransformations();
-        output(items, formatTransformations(items));
+        let items: any[] = await listTransformations();
+        if (opts.source) items = items.filter((t) => t.sourceId === opts.source);
+        if (program.opts().resolve) items = await resolveAll(items);
+        output(items, formatTransformations(items), compactTransformation);
       }
     } catch (e: any) {
       fail(e);
@@ -229,10 +325,10 @@ import { formatDeliveryMetrics } from "./formatters/delivery.ts";
 import { formatVolume } from "./formatters/events.ts";
 
 function defaultStart(): string {
-  return new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0] + "T00:00:00Z";
+  return `${new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]}T00:00:00Z`;
 }
 function defaultEnd(): string {
-  return new Date().toISOString().split("T")[0] + "T23:59:59Z";
+  return `${new Date().toISOString().split("T")[0]}T23:59:59Z`;
 }
 
 program
@@ -308,7 +404,7 @@ program
   .option("--end <date>", "End time (ISO)")
   .action(async (opts: any) => {
     try {
-      let events = await listAuditEvents({
+      let events: any[] = await listAuditEvents({
         startTime: opts.start,
         endTime: opts.end,
         resourceId: opts.resource,
@@ -317,7 +413,8 @@ program
       if (opts.type) {
         events = events.filter((e) => e.type.toLowerCase().includes(opts.type.toLowerCase()));
       }
-      output(events, formatAuditEvents(events));
+      if (program.opts().resolve) events = await resolveAll(events);
+      output(events, formatAuditEvents(events), compactAuditEvent);
     } catch (e: any) {
       fail(e);
     }
@@ -333,7 +430,7 @@ program
   .action(async () => {
     try {
       const regs = await listRegulations();
-      output(regs, formatRegulations(regs));
+      output(regs, formatRegulations(regs), compactRegulation);
     } catch (e: any) {
       fail(e);
     }
@@ -362,10 +459,10 @@ program
     try {
       if (id) {
         const user = await getUser(id);
-        output(user, JSON.stringify(user, null, 2));
+        output(user, JSON.stringify(user, null, 2), compactUser);
       } else {
         const users = await listUsers();
-        output(users, formatUsers(users));
+        output(users, formatUsers(users), compactUser);
       }
     } catch (e: any) {
       fail(e);
@@ -382,7 +479,7 @@ const usageCmd = program
   .option("--period <date>", "Month start date (YYYY-MM-01)")
   .action(async (opts: any) => {
     try {
-      const period = opts.period || new Date().toISOString().slice(0, 8) + "01";
+      const period = opts.period || `${new Date().toISOString().slice(0, 8)}01`;
       const data = await getDailyApiCalls(period);
       output(data, formatApiCallUsage(data));
     } catch (e: any) {
@@ -396,9 +493,77 @@ usageCmd
   .option("--period <date>", "Month start date (YYYY-MM-01)")
   .action(async (opts: any) => {
     try {
-      const period = opts.period || new Date().toISOString().slice(0, 8) + "01";
+      const period = opts.period || `${new Date().toISOString().slice(0, 8)}01`;
       const data = await getDailyMtu(period);
       output(data, formatMtuUsage(data));
+    } catch (e: any) {
+      fail(e);
+    }
+  });
+
+// --- Overview ---
+program
+  .command("overview")
+  .description(
+    "Workspace health: active sources, destinations, violations, volume, transformations",
+  )
+  .action(async () => {
+    try {
+      const [sources, destinations, transformations, plans, auditEvents, volumeData] =
+        await Promise.all([
+          listSources(),
+          listDestinations(),
+          listTransformations(),
+          listTrackingPlans(),
+          listAuditEvents(),
+          getEventVolume({ startTime: defaultStart(), endTime: defaultEnd() }),
+        ]);
+
+      const violations = auditEvents.filter((e) => e.type === "Violations Detected");
+      const volume = volumeData.data?.result?.[0]?.total ?? 0;
+
+      const overview = {
+        sources: {
+          total: sources.length,
+          active: sources.filter((s) => s.enabled).length,
+          inactive: sources.filter((s) => !s.enabled).length,
+          list: sources.filter((s) => s.enabled).map((s) => ({ id: s.id, name: s.name })),
+        },
+        destinations: {
+          total: destinations.length,
+          active: destinations.filter((d) => d.enabled).length,
+          inactive: destinations.filter((d) => !d.enabled).length,
+        },
+        trackingPlans: {
+          total: plans.length,
+          list: plans.map((p) => ({ id: p.id, name: p.name })),
+        },
+        transformations: {
+          total: transformations.length,
+          active: transformations.filter((t) => t.enabled).length,
+          dropping: transformations.filter((t) => t.drop).length,
+        },
+        violations: {
+          recent: violations.length,
+          sources: [...new Set(violations.map((v) => v.resourceName))],
+        },
+        volume: {
+          last7days: volume,
+        },
+      };
+
+      const fmt = [
+        chalk.bold("Workspace Overview"),
+        "",
+        `${chalk.bold("Sources:")}         ${overview.sources.active} active / ${overview.sources.total} total`,
+        `${chalk.bold("Destinations:")}    ${overview.destinations.active} active / ${overview.destinations.total} total`,
+        `${chalk.bold("Tracking Plans:")} ${overview.trackingPlans.total}`,
+        `${chalk.bold("Transformations:")} ${overview.transformations.active} active (${overview.transformations.dropping} dropping)`,
+        `${chalk.bold("Violations:")}     ${overview.violations.recent} recent${overview.violations.sources.length > 0 ? ` on: ${overview.violations.sources.join(", ")}` : ""}`,
+        `${chalk.bold("Volume (7d):")}    ${overview.volume.last7days.toLocaleString()} events`,
+      ].join("\n");
+
+      output(overview, fmt);
     } catch (e: any) {
       fail(e);
     }
