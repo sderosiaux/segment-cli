@@ -128,6 +128,20 @@ export async function segmentDelete(path: string): Promise<{ status: string }> {
   return await (res.json() as Promise<{ data: { status: string } }>).then((d) => d.data);
 }
 
+/** PATCH — update a resource, returns updated data. */
+export async function segmentPatch<T>(path: string, body: Record<string, any>): Promise<T> {
+  const url = buildUrl(path);
+  const res = await fetchWithRetry(url, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  return await (res.json() as Promise<{ data: T }>).then((d) => d.data);
+}
+
 /** Paginated list GET — auto-paginates using cursor, returns all items. */
 export async function segmentGetAll<T>(
   path: string,
