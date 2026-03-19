@@ -1,0 +1,7 @@
+.env*
+node_modules
+dist
+*.scpt
+.DS_Store
+.idea
+data.db

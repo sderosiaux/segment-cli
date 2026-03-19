@@ -1,0 +1,35 @@
+{
+  "name": "segment-cli",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "segment": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "segment": "bun src/index.ts",
+    "lint": "bunx biome check src/",
+    "lint:fix": "bunx biome check --write src/",
+    "prepare": "husky",
+    "postinstall": "bun link"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "bunx biome check --write --no-errors-on-unmatched"
+    ]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.7",
+    "@types/bun": "latest",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3"
+  }
+}
