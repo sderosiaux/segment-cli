@@ -20,7 +20,9 @@ Read-only CLI for the Segment.com Public API. Globally available as `segment` (i
 ```
 segment overview                             Workspace health summary (start here)
 segment sources [id]                         List/get sources
-segment sources debug <srcId>                Live diagnostic (events/min, top events)
+segment sources debug <srcId>                Diagnostic snapshot (events/min, top events)
+segment sources tap <srcId>                  Live event stream (requires cloudflared)
+segment sources tap-cleanup                  Manual cleanup of stale tap destination
 segment sources destinations <srcId>         Connected destinations
 segment sources schema-settings <srcId>      Schema validation config
 segment destinations [id]                    List/get destinations
@@ -30,6 +32,8 @@ segment tracking-plans [id]                  List/get tracking plans
 segment tracking-plans rules <tpId>          Event schemas (governance)
 segment tracking-plans sources <tpId>        Connected sources
 segment transformations [id]                 List/get transformations
+segment reverse-etl [id]                     List/get Reverse ETL models (includes SQL query)
+segment reverse-etl subscriptions <modelId>  Destination mappings for a model
 segment delivery <type> --source <id>        Delivery metrics
 segment volume                               Event volume
 segment audit                                Audit trail
@@ -86,6 +90,9 @@ segment sources --json --compact | jq '[.[] | select(.enabled)]'
 # Deep dive on a source (volume + destinations + transformations)
 segment sources <srcId> --all --json
 
+# Live event stream (real payloads, requires cloudflared)
+segment sources tap <srcId> --json
+
 # Debug a source (events/min, top events, last 5 minutes)
 segment sources debug <srcId> --json --period 5
 
@@ -99,11 +106,15 @@ segment audit --json --type violations --limit 10
 # Check transformations with resolved names
 segment transformations --json --resolve
 
+# Reverse ETL: list models and their destination mappings
+segment reverse-etl --json --compact --resolve
+segment reverse-etl subscriptions <modelId> --json
+
 # Event volume by source
 segment volume --json --group-by source
 
 # Delivery health for a source
-segment delivery overview --source <srcId> --json
+segment delivery egress --source <srcId> --json
 ```
 
 ## Architecture
@@ -111,6 +122,8 @@ segment delivery overview --source <srcId> --json
 ```
 src/index.ts          CLI entry (Commander.js)
 src/client.ts         HTTP client (fetch, Bearer auth, retry, pagination)
+src/tap.ts            Live event tap (cloudflared tunnel + temp webhook)
+src/resolver.ts       Lazy-cached ID-to-name resolver
 src/api/*.ts          API modules per resource
 src/formatters/*.ts   Chalk formatters for terminal output
 ```

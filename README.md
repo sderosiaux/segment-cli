@@ -149,6 +149,35 @@ Transformations (2):
   ON  Don't Send Demo Events to Intercom DROP
 ```
 
+### Reverse ETL
+
+```
+$ segment reverse-etl
+
+Reverse ETL Models (2):
+  ON  MAU per Organization (30d)                         [organization] <modelId>
+  ON  Last Active + Cluster Count                        [email] <modelId>
+
+$ segment reverse-etl <modelId>
+
+Name:       MAU per Organization (30d)
+ID:         <modelId>
+Enabled:    yes
+Source:     BigQuery
+Identifier: organization
+
+Query:
+SELECT organization, COUNT(DISTINCT(user_id)) as MAU
+  FROM identifies WHERE ...
+ GROUP BY organization
+
+$ segment reverse-etl subscriptions <modelId>
+
+Subscriptions for "MAU per Organization (30d)" (1):
+  ON  Upsert Company [upsertCompany]
+       → HubSpot Prod <subscriptionId>
+```
+
 ### Workspace Overview
 
 ```
@@ -182,6 +211,8 @@ Volume (7d):    3,055,482 events
 | `tracking-plans rules <id>` | Event schemas / governance rules (`--type TRACK`) |
 | `tracking-plans sources <id>` | Connected sources |
 | `transformations [id]` | List transformations (`--source <id>`, `--resolve`) |
+| `reverse-etl [id]` | List Reverse ETL models or detail (includes SQL query) |
+| `reverse-etl subscriptions <id>` | Destination mappings linked to a Reverse ETL model |
 | `delivery <type>` | Delivery metrics (egress, filtered-source, etc.) |
 | `volume` | Event volume (`--group-by eventName`, `--source <id>`) |
 | `audit` | Audit trail (`--type`, `--resource`, `--start`, `--end`) |
