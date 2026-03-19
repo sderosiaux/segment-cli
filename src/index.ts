@@ -71,6 +71,18 @@ const compactSource = (s: any) => ({
   name: s.name,
   slug: s.slug,
   enabled: s.enabled,
+  ...(s.volume ? { volume: s.volume } : {}),
+  ...(s.dests
+    ? {
+        connectedDestinations: s.dests.map((d: any) => ({
+          name: d.name || d.metadata?.name,
+          enabled: d.enabled,
+        })),
+      }
+    : {}),
+  ...(s.transforms
+    ? { transformations: s.transforms.map((t: any) => ({ name: t.name, drop: t.drop, if: t.if })) }
+    : {}),
 });
 
 const compactDestination = (d: any) => ({
@@ -263,7 +275,13 @@ async function showSourceDebug(sourceId: string, opts: any) {
     }
   }
 
-  output(debugData, fmt.join("\n"));
+  output(debugData, fmt.join("\n"), (d: any) => ({
+    source: d.source,
+    totalEvents: d.totalEvents,
+    eventsPerMinute: d.eventsPerMinute,
+    topEvents: d.topEvents?.slice(0, 10),
+    violations: d.violations,
+  }));
 }
 
 sourcesCmd
@@ -388,7 +406,13 @@ destsCmd
     try {
       let filters = await listDestinationFilters(destinationId);
       if (program.opts().resolve) filters = (await resolveAll(filters)) as any;
-      output(filters, formatFilters(filters));
+      output(filters, formatFilters(filters), (f: any) => ({
+        id: f.id,
+        title: f.title,
+        enabled: f.enabled,
+        if: f.if,
+        actions: f.actions?.map((a: any) => a.type),
+      }));
     } catch (e: any) {
       fail(e);
     }
@@ -531,7 +555,7 @@ program
         endTime: opts.end || defaultEnd(),
         granularity: opts.granularity,
       });
-      output(data, formatDeliveryMetrics(data, type));
+      output(data, formatDeliveryMetrics(data, type), (d: any) => d);
     } catch (e: any) {
       fail(e);
     }
@@ -553,7 +577,10 @@ program
         groupBy: opts.groupBy,
       });
       const results = data.data?.result || [];
-      output(results, formatVolume(results));
+      output(results, formatVolume(results), (r: any) => ({
+        eventName: r.eventName,
+        total: r.total,
+      }));
     } catch (e: any) {
       fail(e);
     }
@@ -650,7 +677,11 @@ const usageCmd = program
     try {
       const period = opts.period || `${new Date().toISOString().slice(0, 8)}01`;
       const data = await getDailyApiCalls(period);
-      output(data, formatApiCallUsage(data));
+      output(data, formatApiCallUsage(data), (d: any) => ({
+        timestamp: d.timestamp,
+        apiCalls: d.apiCalls,
+        sourceId: d.sourceId,
+      }));
     } catch (e: any) {
       fail(e);
     }
@@ -664,7 +695,12 @@ usageCmd
     try {
       const period = opts.period || `${new Date().toISOString().slice(0, 8)}01`;
       const data = await getDailyMtu(period);
-      output(data, formatMtuUsage(data));
+      output(data, formatMtuUsage(data), (d: any) => ({
+        timestamp: d.timestamp,
+        anonymous: d.anonymous,
+        identified: d.identified,
+        sourceId: d.sourceId,
+      }));
     } catch (e: any) {
       fail(e);
     }
@@ -732,7 +768,7 @@ program
         `${chalk.bold("Volume (7d):")}    ${overview.volume.last7days.toLocaleString()} events`,
       ].join("\n");
 
-      output(overview, fmt);
+      output(overview, fmt, (d: any) => d);
     } catch (e: any) {
       fail(e);
     }
@@ -812,7 +848,6 @@ retlCmd
 program
   .command("violations")
   .description("Recent schema violations (shortcut for audit --type violations)")
-  .option("--limit <n>", "Max violations to show")
   .option("--source <name>", "Filter by source name (substring match)")
   .action(async (opts: any) => {
     try {
@@ -823,8 +858,9 @@ program
           e.resourceName.toLowerCase().includes(opts.source.toLowerCase()),
         );
       }
-      const limit = Number.parseInt(opts.limit, 10);
-      if (limit > 0) events = events.slice(0, limit);
+      // Apply global --limit
+      const globalLimit = Number.parseInt(program.opts().limit, 10);
+      if (globalLimit > 0) events = events.slice(0, globalLimit);
 
       // Group by source for summary
       const bySource: Record<string, number> = {};
@@ -935,7 +971,12 @@ program
         fmtLines.push(chalk.green("All active sources are covered by a tracking plan."));
       }
 
-      output(data, fmtLines.join("\n"));
+      output(data, fmtLines.join("\n"), (d: any) => ({
+        totalPlans: d.totalPlans,
+        activeSources: d.activeSources,
+        coveredSources: d.coveredSources,
+        uncoveredActiveSources: d.uncoveredActiveSources,
+      }));
     } catch (e: any) {
       fail(e);
     }
