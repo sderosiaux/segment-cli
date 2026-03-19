@@ -177,21 +177,24 @@ function startTunnel(port: number): Promise<{ process: ChildProcess; url: string
     );
 
     let resolved = false;
+    const stderrChunks: string[] = [];
+
     const timeout = setTimeout(() => {
       if (!resolved) {
+        resolved = true;
         proc.kill();
-        reject(new Error("Cloudflared tunnel failed to start within 30s"));
+        const output = stderrChunks.join("").trim();
+        reject(new Error(`Cloudflared failed to start within 30s.\n${output}`));
       }
     }, 30000);
 
     const handleOutput = (data: Buffer) => {
       const line = data.toString();
-      // cloudflared prints the URL to stderr
+      stderrChunks.push(line);
       const match = line.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
       if (match && !resolved) {
         resolved = true;
         clearTimeout(timeout);
-        // Stop listening to cloudflared output after URL found
         proc.stderr?.removeAllListeners("data");
         proc.stdout?.removeAllListeners("data");
         resolve({ process: proc, url: match[0] });
@@ -205,6 +208,14 @@ function startTunnel(port: number): Promise<{ process: ChildProcess; url: string
         resolved = true;
         clearTimeout(timeout);
         reject(err);
+      }
+    });
+    proc.on("exit", (code) => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        const output = stderrChunks.join("").trim();
+        reject(new Error(`Cloudflared exited with code ${code}.\n${output}`));
       }
     });
   });
