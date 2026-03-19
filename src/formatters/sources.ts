@@ -23,7 +23,7 @@ export function formatSource(s: Source): string {
     lines.push(`${chalk.bold("Type:")}       ${s.metadata.name}`);
     lines.push(`${chalk.bold("Categories:")} ${s.metadata.categories?.join(", ") || "none"}`);
   }
-  if (s.labels?.length) {
+  if (s.labels?.length > 0) {
     lines.push(
       `${chalk.bold("Labels:")}     ${s.labels.map((l) => `${l.key}:${l.value}`).join(", ")}`,
     );

@@ -7,9 +7,10 @@ export interface WorkspaceUser {
 }
 
 export async function listUsers(): Promise<WorkspaceUser[]> {
-  return segmentGetAll<WorkspaceUser>("/users", "users");
+  return await segmentGetAll<WorkspaceUser>("/users", "users");
 }
 
 export async function getUser(id: string): Promise<WorkspaceUser> {
-  return segmentGet<{ user: WorkspaceUser }>(`/users/${id}`).then((d) => d.user);
+  const data = await segmentGet<{ user: WorkspaceUser }>(`/users/${id}`);
+  return data.user;
 }

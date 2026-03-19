@@ -22,5 +22,5 @@ export async function listAuditEvents(params?: {
   if (params?.endTime) queryParams.endTime = params.endTime;
   if (params?.resourceId) queryParams.resourceId = params.resourceId;
   if (params?.resourceType) queryParams.resourceType = params.resourceType;
-  return segmentGetAll<AuditEvent>("/audit-events", "events", queryParams);
+  return await segmentGetAll<AuditEvent>("/audit-events", "events", queryParams);
 }

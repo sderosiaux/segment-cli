@@ -6,7 +6,7 @@ export function formatApiCallUsage(data: DailyApiCallUsage[]): string {
   const bySource: Record<string, number> = {};
   for (const d of data) {
     const key = d.sourceId || "total";
-    bySource[key] = (bySource[key] || 0) + parseInt(d.apiCalls, 10);
+    bySource[key] = (bySource[key] || 0) + Number.parseInt(d.apiCalls, 10);
   }
   const total = Object.values(bySource).reduce((s, v) => s + v, 0);
   const lines = Object.entries(bySource)
@@ -21,10 +21,13 @@ export function formatMtuUsage(data: DailyMtuUsage[]): string {
   for (const d of data) {
     const key = d.sourceId || "total";
     if (!bySource[key]) bySource[key] = { anonymous: 0, identified: 0 };
-    bySource[key].anonymous = Math.max(bySource[key].anonymous, parseInt(d.anonymous || "0", 10));
+    bySource[key].anonymous = Math.max(
+      bySource[key].anonymous,
+      Number.parseInt(d.anonymous || "0", 10),
+    );
     bySource[key].identified = Math.max(
       bySource[key].identified,
-      parseInt(d.identified || "0", 10),
+      Number.parseInt(d.identified || "0", 10),
     );
   }
   const lines = Object.entries(bySource)

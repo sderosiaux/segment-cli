@@ -17,11 +17,10 @@ export interface Transformation {
 }
 
 export async function listTransformations(): Promise<Transformation[]> {
-  return segmentGetAll<Transformation>("/transformations", "transformations");
+  return await segmentGetAll<Transformation>("/transformations", "transformations");
 }
 
 export async function getTransformation(id: string): Promise<Transformation> {
-  return segmentGet<{ transformation: Transformation }>(`/transformations/${id}`).then(
-    (d) => d.transformation,
-  );
+  const data = await segmentGet<{ transformation: Transformation }>(`/transformations/${id}`);
+  return data.transformation;
 }

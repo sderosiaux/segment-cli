@@ -9,9 +9,9 @@ export interface Regulation {
 }
 
 export async function listRegulations(): Promise<Regulation[]> {
-  return segmentGetAll<Regulation>("/regulations", "regulations");
+  return await segmentGetAll<Regulation>("/regulations", "regulations");
 }
 
 export async function listSuppressions() {
-  return segmentGetAll("/suppressions", "suppressions");
+  return await segmentGetAll("/suppressions", "suppressions");
 }

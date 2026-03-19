@@ -21,7 +21,7 @@ export async function resolveDestinationName(id: string): Promise<string> {
 }
 
 export async function resolveAll(items: any[]): Promise<any[]> {
-  return Promise.all(
+  return await Promise.all(
     items.map(async (item) => {
       const resolved = { ...item };
       if (resolved.sourceId) resolved.sourceName = await resolveSourceName(resolved.sourceId);

@@ -20,7 +20,7 @@ export async function getEventVolume(params: {
   };
   if (params.sourceId) queryParams.sourceId = params.sourceId;
   if (params.groupBy) queryParams["groupBy[]"] = params.groupBy;
-  return segmentGetRaw<{ data: { result: EventVolume[]; pagination?: any } }>(
+  return await segmentGetRaw<{ data: { result: EventVolume[]; pagination?: any } }>(
     "/events/volume",
     queryParams,
   );

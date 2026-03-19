@@ -12,17 +12,18 @@ export interface Source {
 }
 
 export async function listSources(): Promise<Source[]> {
-  return segmentGetAll<Source>("/sources", "sources");
+  return await segmentGetAll<Source>("/sources", "sources");
 }
 
 export async function getSource(id: string): Promise<Source> {
-  return segmentGet<{ source: Source }>(`/sources/${id}`).then((d) => d.source);
+  const data = await segmentGet<{ source: Source }>(`/sources/${id}`);
+  return data.source;
 }
 
 export async function getSourceConnectedDestinations(sourceId: string) {
-  return segmentGetAll(`/sources/${sourceId}/connected-destinations`, "destinations");
+  return await segmentGetAll(`/sources/${sourceId}/connected-destinations`, "destinations");
 }
 
 export async function getSourceSchemaSettings(sourceId: string) {
-  return segmentGet(`/sources/${sourceId}/schema-settings`);
+  return await segmentGet(`/sources/${sourceId}/schema-settings`);
 }

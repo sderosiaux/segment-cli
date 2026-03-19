@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -20,14 +20,54 @@
       "recommended": true,
       "correctness": {
         "noUnusedVariables": "error",
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noUndeclaredVariables": "error"
       },
       "suspicious": {
         "noDebugger": "error",
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noDoubleEquals": "error",
+        "noThenProperty": "error",
+        "noAssignInExpressions": "error",
+        "noEmptyBlockStatements": "error",
+        "useAwait": "error"
+      },
+      "complexity": {
+        "noForEach": "error",
+        "noUselessSwitchCase": "error",
+        "noVoid": "error",
+        "useFlatMap": "error",
+        "useSimplifiedLogicExpression": "warn",
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": { "maxAllowedComplexity": 20 }
+        }
       },
       "style": {
-        "useConst": "error"
+        "useConst": "error",
+        "useTemplate": "error",
+        "useForOf": "error",
+        "useShorthandAssign": "error",
+        "useCollapsedElseIf": "error",
+        "noNegationElse": "error",
+        "useExplicitLengthCheck": "error",
+        "useThrowNewError": "error",
+        "useThrowOnlyError": "error",
+        "noNamespace": "error",
+        "useNodejsImportProtocol": "error",
+        "useNumberNamespace": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "error",
+        "noDelete": "error",
+        "noBarrelFile": "error",
+        "noReExportAll": "error"
+      },
+      "security": {
+        "noGlobalEval": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "warn"
       }
     }
   },

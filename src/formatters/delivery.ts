@@ -8,7 +8,7 @@ export function formatDeliveryMetrics(data: any, type: string): string {
   for (const entry of dataset) {
     const label = entry.metricName || entry.eventName || "total";
     lines.push(`  ${chalk.bold(label)}: ${(entry.total ?? 0).toLocaleString()}`);
-    if (entry.series?.length) {
+    if (entry.series?.length > 0) {
       for (const s of entry.series) {
         const date = s.time.split("T")[0];
         lines.push(`    ${chalk.dim(date)} ${s.count.toLocaleString()}`);
@@ -16,6 +16,6 @@ export function formatDeliveryMetrics(data: any, type: string): string {
     }
   }
   const header =
-    total != null ? `Delivery ${type} (total: ${total.toLocaleString()})` : `Delivery ${type}`;
+    total == null ? `Delivery ${type}` : `Delivery ${type} (total: ${total.toLocaleString()})`;
   return `${chalk.bold(`${header}:`)}\n${lines.join("\n")}`;
 }

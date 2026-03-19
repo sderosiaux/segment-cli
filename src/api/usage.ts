@@ -18,7 +18,7 @@ export interface DailyMtuUsage {
 }
 
 export async function getDailyApiCalls(period: string): Promise<DailyApiCallUsage[]> {
-  return segmentGetAll<DailyApiCallUsage>(
+  return await segmentGetAll<DailyApiCallUsage>(
     "/usage/api-calls/sources/daily",
     "dailyPerSourceAPICallsUsage",
     { period },
@@ -26,7 +26,7 @@ export async function getDailyApiCalls(period: string): Promise<DailyApiCallUsag
 }
 
 export async function getDailyMtu(period: string): Promise<DailyMtuUsage[]> {
-  return segmentGetAll<DailyMtuUsage>("/usage/mtu/sources/daily", "dailyPerSourceMTUUsage", {
+  return await segmentGetAll<DailyMtuUsage>("/usage/mtu/sources/daily", "dailyPerSourceMTUUsage", {
     period,
   });
 }

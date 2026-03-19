@@ -112,7 +112,7 @@ export async function segmentGet<T>(path: string, params?: Record<string, string
 
 /** Raw GET — returns full response without unwrapping. */
 export async function segmentGetRaw<T>(path: string, params?: Record<string, string>): Promise<T> {
-  return request<T>(path, params);
+  return await request<T>(path, params);
 }
 
 /** Paginated list GET — auto-paginates using cursor, returns all items. */

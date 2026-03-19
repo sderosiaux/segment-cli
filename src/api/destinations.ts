@@ -21,17 +21,21 @@ export interface DestinationFilter {
 }
 
 export async function listDestinations(): Promise<Destination[]> {
-  return segmentGetAll<Destination>("/destinations", "destinations");
+  return await segmentGetAll<Destination>("/destinations", "destinations");
 }
 
 export async function getDestination(id: string): Promise<Destination> {
-  return segmentGet<{ destination: Destination }>(`/destinations/${id}`).then((d) => d.destination);
+  const data = await segmentGet<{ destination: Destination }>(`/destinations/${id}`);
+  return data.destination;
 }
 
 export async function listDestinationFilters(destinationId: string): Promise<DestinationFilter[]> {
-  return segmentGetAll<DestinationFilter>(`/destinations/${destinationId}/filters`, "filters");
+  return await segmentGetAll<DestinationFilter>(
+    `/destinations/${destinationId}/filters`,
+    "filters",
+  );
 }
 
 export async function listDestinationSubscriptions(destinationId: string) {
-  return segmentGetAll(`/destinations/${destinationId}/subscriptions`, "subscriptions");
+  return await segmentGetAll(`/destinations/${destinationId}/subscriptions`, "subscriptions");
 }
