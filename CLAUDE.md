@@ -4,7 +4,7 @@ Read-only CLI for the Segment.com Public API. Globally available as `segment` (i
 
 ## Authentication
 
-`SEGMENT_TOKEN` in `.env` (auto-loaded by Bun). Default region: `eu` (`SEGMENT_REGION`).
+`SEGMENT_TOKEN` in `~/.config/segment-cli/config` (or `~/.segmentrc`, or env var). Default region: `eu` (`SEGMENT_REGION`).
 
 ## Global Flags
 

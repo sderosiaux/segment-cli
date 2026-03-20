@@ -20,12 +20,19 @@ brew install cloudflared
 
 ## Setup
 
-Create a `.env` file with your Segment Public API token:
+Create `~/.config/segment-cli/config` with your Segment Public API token:
 
-```
+```bash
+mkdir -p ~/.config/segment-cli
+cat > ~/.config/segment-cli/config << 'EOF'
 SEGMENT_TOKEN=sgp_...
-SEGMENT_REGION=eu    # optional, defaults to "eu". Use "us" for US workspaces.
+SEGMENT_REGION=eu
+EOF
 ```
+
+`SEGMENT_REGION` is optional (defaults to `eu`). Use `us` for US workspaces.
+
+Alternatively, use `~/.segmentrc` or export `SEGMENT_TOKEN` as an env var.
 
 Generate a token at [app.segment.com](https://app.segment.com) > Settings > Access Management > Tokens.
 

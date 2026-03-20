@@ -1,25 +1,32 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { cleanupStaleTap, hasStaleTap } from "./tap.ts";
 
-// Load .env from the project directory (not cwd) so `segment` works from anywhere
-const projectDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const envPath = join(projectDir, ".env");
-if (existsSync(envPath)) {
-  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-    if (!process.env[key]) process.env[key] = value;
+// Load config: env var > ~/.config/segment-cli/config > .env (cwd)
+function loadConfig() {
+  const paths = [
+    join(homedir(), ".config", "segment-cli", "config"),
+    join(homedir(), ".segmentrc"),
+  ];
+  for (const p of paths) {
+    if (!existsSync(p)) continue;
+    for (const line of readFileSync(p, "utf-8").split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      if (!process.env[key]) process.env[key] = value;
+    }
+    return;
   }
 }
+loadConfig();
 
 export const program = new Command();
 
