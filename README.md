@@ -6,15 +6,26 @@ Built for governance, observability, and LLM-actionable output.
 
 ## Install
 
-Requires [Bun](https://bun.sh). Optional: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) for `sources tap`.
+### As a Claude Code skill (recommended)
 
 ```bash
-git clone https://github.com/sderosiaux/segment-cli.git
-cd segment-cli
-bun install
-bun link
+npx skills add sderosiaux/segment-cli
+```
 
-# Optional: for live event tapping
+This gives your AI agent full knowledge of the CLI: commands, flags, workflows, and token-saving patterns.
+
+### CLI binary
+
+Requires [Bun](https://bun.sh).
+
+```bash
+git clone https://github.com/sderosiaux/segment-cli.git ~/.local/share/segment-cli
+cd ~/.local/share/segment-cli && bun install && bun link
+```
+
+Optional: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) for `sources tap` (live event stream).
+
+```bash
 brew install cloudflared
 ```
 
